@@ -14,7 +14,7 @@ HOLDINGS = {
 # PRICES: latest price per unit, in SGD
 PRICES = {
     "ALPHA_TECH": 152.40,
-    "BETA_BANK": 38.75,
+    "BETA_BANK": 39.10,
     "GAMMA_INFRA_FUND": 25_000.00,   # private assets are valued periodically, not traded daily
 }
 

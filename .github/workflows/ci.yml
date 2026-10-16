@@ -45,3 +45,32 @@ jobs:
 
       - name: Scan full history for secrets
         run: ./gitleaks git . --redact --verbose
+
+  sca:
+    name: Dependency scan (pip-audit) + SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit (version-locked)
+        run: pip install pip-audit==2.10.1
+
+      - name: Scan libraries for known vulnerabilities (GATE)
+        run: pip-audit -r requirements.txt --aliases on
+
+      - name: Generate SBOM - ingredients list (EVIDENCE)
+        if: always()
+        run: pip-audit -r requirements.txt -f cyclonedx-json -o sbom.cdx.json || true
+
+      - name: Keep SBOM with this run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cdx.json

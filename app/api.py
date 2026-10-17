@@ -3,6 +3,8 @@ Minimal NAV web API (fictional data).
 The same code runs on AWS Lambda (lambda_handler) and locally (python -m app.api).
 """
 import json
+import os
+import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from app.valuation import HOLDINGS, PRICES, calculate_nav, value_position
@@ -59,4 +61,5 @@ class LocalHandler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     print("NAV API running on http://localhost:8000  (Ctrl+C to stop)")
-    HTTPServer(("0.0.0.0", 8000), LocalHandler).serve_forever()
+    host = os.environ.get("NAV_BIND_HOST", "127.0.0.1")
+    HTTPServer((host, 8000), LocalHandler).serve_forever()

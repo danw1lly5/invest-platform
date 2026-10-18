@@ -1,0 +1,3 @@
+# Security-sensitive files: changes need approval from Security
+/.github/   @danw1lly5-reviewer
+/.zap/      @danw1lly5-reviewer

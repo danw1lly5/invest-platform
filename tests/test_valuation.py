@@ -41,4 +41,5 @@ def test_security_headers_present():
     """Hardening found by DAST must not silently disappear."""
     headers = lambda_handler({"rawPath": "/nav"}, None)["headers"]
     assert headers["X-Content-Type-Options"] == "nosniff"
-    assert headers["Cache-Control"] == "no-store"
+    assert headers["Cache-Control"] == "no-store, no-cache, must-revalidate"
+    assert headers["Strict-Transport-Security"].startswith("max-age=")

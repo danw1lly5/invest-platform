@@ -4,3 +4,4 @@
 10036	FAIL	(Server version disclosure - fixed 2026-10-18, must not regress)
 90004	FAIL	(Cross-Origin-Resource-Policy missing - fixed 2026-10-18, must not regress)
 10049	IGNORE	(Non-Storable Content: informational, confirms Cache-Control no-store. Owner: danw1lly5. Approved: Security. Review by: 2027-04-30)
+10015	FAIL	(Cache-control: fixed 2026-10-19, must not regress)

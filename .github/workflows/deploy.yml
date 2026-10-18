@@ -1,0 +1,103 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write        # lets the job request a GitHub ID card for AWS (OIDC)
+
+concurrency: deploy-nav-api   # one release at a time
+
+jobs:
+  build:
+    name: Build release package (once)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build zip and fingerprint it
+        run: |
+          mkdir -p build
+          pip install -r requirements.txt -t build
+          cp -r app build/
+          (cd build && zip -qr ../nav-api.zip .)
+          sha256sum nav-api.zip | tee nav-api.zip.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nav-api-package
+          path: |
+            nav-api.zip
+            nav-api.zip.sha256
+
+  deploy-uat:
+    name: Deploy to UAT + test it
+    needs: build
+    runs-on: ubuntu-latest
+    environment: uat
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: nav-api-package
+      - name: Verify package is the one that was built
+        run: sha256sum -c nav-api.zip.sha256
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ap-southeast-1
+      - name: Deploy package to UAT
+        run: |
+          aws lambda update-function-code --function-name ${{ vars.FUNCTION_NAME }} --zip-file fileb://nav-api.zip --query CodeSha256 --output text
+          aws lambda wait function-updated --function-name ${{ vars.FUNCTION_NAME }}
+      - name: Evidence - deployed code equals built package
+        run: |
+          BUILT=$(openssl dgst -sha256 -binary nav-api.zip | base64)
+          DEPLOYED=$(aws lambda get-function-configuration --function-name ${{ vars.FUNCTION_NAME }} --query CodeSha256 --output text)
+          echo "built=$BUILT deployed=$DEPLOYED"; [ "$BUILT" = "$DEPLOYED" ]
+      - name: Smoke test UAT
+        run: |
+          curl -sf "${{ vars.UAT_URL }}health"
+          curl -sf "${{ vars.UAT_URL }}nav" | grep -q '"nav": 500150.0'
+      - name: DAST against deployed UAT (ZAP baseline)
+        run: |
+          mkdir -p zap && chmod 777 zap && cp .zap/rules.tsv zap/
+          docker run --rm -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t "${{ vars.UAT_URL }}nav" -c rules.tsv -r zap-uat-report.html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-uat-report
+          path: zap/
+
+  deploy-prod:
+    name: Deploy to PROD (needs release approval)
+    needs: deploy-uat
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nav-api-package
+      - name: Verify package is the one tested in UAT
+        run: sha256sum -c nav-api.zip.sha256
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ap-southeast-1
+      - name: Deploy package to PROD
+        run: |
+          aws lambda update-function-code --function-name ${{ vars.FUNCTION_NAME }} --zip-file fileb://nav-api.zip --query CodeSha256 --output text
+          aws lambda wait function-updated --function-name ${{ vars.FUNCTION_NAME }}
+      - name: Evidence - deployed code equals built package
+        run: |
+          BUILT=$(openssl dgst -sha256 -binary nav-api.zip | base64)
+          DEPLOYED=$(aws lambda get-function-configuration --function-name ${{ vars.FUNCTION_NAME }} --query CodeSha256 --output text)
+          echo "built=$BUILT deployed=$DEPLOYED"; [ "$BUILT" = "$DEPLOYED" ]
+      - name: Smoke test PROD (from inside AWS - no public URL)
+        run: |
+          aws lambda invoke --function-name ${{ vars.FUNCTION_NAME }} --cli-binary-format raw-in-base64-out --payload '{"rawPath":"/nav"}' out.json
+          cat out.json; grep -q '500150.0' out.json

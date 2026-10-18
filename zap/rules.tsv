@@ -1,0 +1,6 @@
+# ZAP DAST policy for invest-platform - changes require Security approval
+# Format: rule-id <TAB> action <TAB> (reason / owner / approver / review date)
+10021	FAIL	(X-Content-Type-Options missing - fixed 2026-10-18, must not regress)
+10036	FAIL	(Server version disclosure - fixed 2026-10-18, must not regress)
+90004	FAIL	(Cross-Origin-Resource-Policy missing - fixed 2026-10-18, must not regress)
+10049	IGNORE	(Non-Storable Content: informational, confirms Cache-Control no-store. Owner: danw1lly5. Approved: Security. Review by: 2027-04-30)

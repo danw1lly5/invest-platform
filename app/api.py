@@ -24,6 +24,15 @@ def get_nav():
     return {"currency": "SGD", "nav": calculate_nav(HOLDINGS, PRICES), "positions": positions}
 
 
+# Sent with EVERY response (found missing by the ZAP DAST scan)
+SECURITY_HEADERS = {
+    "Content-Type": "application/json",
+    "X-Content-Type-Options": "nosniff",
+    "Cache-Control": "no-store",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; form-action 'none'",
+}
+
 ROUTES = {
     "/health": lambda: {"status": "ok"},
     "/nav": get_nav,
@@ -42,7 +51,7 @@ def lambda_handler(event, context):
     status, body = route(event.get("rawPath", "/"))
     return {
         "statusCode": status,
-        "headers": {"Content-Type": "application/json"},
+        "headers": dict(SECURITY_HEADERS),
         "body": json.dumps(body),
     }
 
@@ -50,11 +59,16 @@ def lambda_handler(event, context):
 class LocalHandler(BaseHTTPRequestHandler):
     """Entry point when running locally or inside the pipeline."""
 
+    def version_string(self):
+        """Do not reveal server software or version to visitors."""
+        return "NAV-API"
+
     def do_GET(self):
         status, body = route(self.path)
         payload = json.dumps(body).encode()
         self.send_response(status)
-        self.send_header("Content-Type", "application/json")
+        for name, value in SECURITY_HEADERS.items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(payload)
 

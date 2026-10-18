@@ -35,3 +35,10 @@ def test_api_nav_endpoint():
     """The API returns the same NAV as the valuation engine."""
     response = lambda_handler({"rawPath": "/nav"}, None)
     assert json.loads(response["body"])["nav"] == 500150.00
+
+
+def test_security_headers_present():
+    """Hardening found by DAST must not silently disappear."""
+    headers = lambda_handler({"rawPath": "/nav"}, None)["headers"]
+    assert headers["X-Content-Type-Options"] == "nosniff"
+    assert headers["Cache-Control"] == "no-store"

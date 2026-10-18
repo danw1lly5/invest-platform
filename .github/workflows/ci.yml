@@ -115,10 +115,10 @@ jobs:
 
       - name: Attack-test the running service with ZAP (GATE - baseline scan)
         run: |
-          mkdir -p zap && chmod 777 zap
+          mkdir -p zap && chmod 777 zap && cp .zap/rules.tsv zap/
           docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py -t http://127.0.0.1:8000/nav -r zap-report.html -J zap-report.json
+            zap-baseline.py -t http://127.0.0.1:8000/nav -c rules.tsv -r zap-report.html -J zap-report.json
 
       - name: Keep ZAP report with this run (EVIDENCE)
         if: always()

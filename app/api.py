@@ -28,7 +28,7 @@ def get_nav():
 SECURITY_HEADERS = {
     "Content-Type": "application/json",
     "X-Content-Type-Options": "nosniff",
-    "Cache-Control": "no-store",
+    "Cache-Control": "no-store, no-cache, must-revalidate",
     "Cross-Origin-Resource-Policy": "same-origin",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; form-action 'none'",

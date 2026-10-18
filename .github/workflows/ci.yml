@@ -92,3 +92,37 @@ jobs:
 
       - name: Scan our own code for insecure patterns (GATE - medium and above)
         run: bandit -r app -ll
+
+  dast:
+    name: Web scan (OWASP ZAP DAST)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install libraries
+        run: pip install -r requirements.txt
+
+      - name: Start the NAV service (temporary, inside this runner only)
+        run: |
+          python -m app.api &
+          for i in $(seq 1 20); do curl -sf http://127.0.0.1:8000/health && break; sleep 1; done
+
+      - name: Attack-test the running service with ZAP (GATE - baseline scan)
+        run: |
+          mkdir -p zap && chmod 777 zap && cp .zap/rules.tsv zap/
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://127.0.0.1:8000/nav -c rules.tsv -r zap-report.html -J zap-report.json
+
+      - name: Keep ZAP report with this run (EVIDENCE)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: zap/
